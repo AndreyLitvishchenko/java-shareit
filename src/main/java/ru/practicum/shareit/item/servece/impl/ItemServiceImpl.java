@@ -185,7 +185,7 @@ public class ItemServiceImpl implements ItemService {
         return ItemMapper.toItemWithBookingDto(item, null, null, comments);
     }
 
-    @Override
+@Override
     public List<ItemWithBookingDto> getAllItemsByUserId(Long userId, Integer from, Integer size) {
         userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
@@ -207,7 +207,6 @@ public class ItemServiceImpl implements ItemService {
                     List<Booking> lastBookings = bookingRepository.findByItemIdAndStartBeforeOrderByStartDesc(
                             itemId, now, BookingStatus.APPROVED, Pageable.ofSize(1));
                     Booking lastBooking = lastBookings.isEmpty() ? null : lastBookings.get(0);
-
                     List<Booking> nextBookings = bookingRepository.findByItemIdAndStartAfterOrderByStartAsc(
                             itemId, now, BookingStatus.APPROVED, Pageable.ofSize(1));
                     Booking nextBooking = nextBookings.isEmpty() ? null : nextBookings.get(0);

@@ -12,7 +12,6 @@ import ru.practicum.shareit.item.model.Item;
 public interface ItemRepository extends JpaRepository<Item, Long> {
     List<Item> findByOwnerId(Long ownerId, Pageable pageable);
 
-    
     List<Item> findByOwnerIdOrderById(Long ownerId, Pageable pageable);
 
     @Query("SELECT i FROM Item i " +
