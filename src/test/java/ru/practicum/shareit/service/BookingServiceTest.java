@@ -142,7 +142,7 @@ class BookingServiceTest {
     void shouldNotUpdateBookingStatusWhenNotOwner() {
         when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
 
-        assertThrows(NotFoundException.class,
+        assertThrows(ValidationException.class,
                 () -> bookingService.updateBookingStatus(1L, 1L, true)); // user is not owner
     }
 
