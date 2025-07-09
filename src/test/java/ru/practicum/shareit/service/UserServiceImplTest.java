@@ -1,29 +1,37 @@
 package ru.practicum.shareit.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import ru.practicum.shareit.exception.ConflictException;
+
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.model.User;
+import ru.practicum.shareit.user.repository.UserRepository;
 import ru.practicum.shareit.user.service.impl.UserServiceImpl;
-import ru.practicum.shareit.user.storage.UserStorage;
-
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceImplTest {
 
     @Mock
-    private UserStorage userStorage;
+    private UserRepository userRepository;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -33,33 +41,24 @@ class UserServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        user = new User(1L, "John Doe", "john.doe@example.com");
-        userDto = new UserDto(1L, "John Doe", "john.doe@example.com");
+        user = User.builder().id(1L).name("John Doe").email("john.doe@example.com").build();
+        userDto = UserDto.builder().id(1L).name("John Doe").email("john.doe@example.com").build();
     }
 
     @Test
     void shouldCreateUser() {
-        when(userStorage.existsByEmail(anyString())).thenReturn(false);
-        when(userStorage.save(any(User.class))).thenReturn(user);
+        when(userRepository.save(any(User.class))).thenReturn(user);
 
         UserDto createdUser = userService.createUser(userDto);
 
         assertNotNull(createdUser);
         assertEquals(userDto.getName(), createdUser.getName());
-        verify(userStorage).save(any(User.class));
-    }
-
-    @Test
-    void shouldThrowConflictExceptionWhenEmailExists() {
-        when(userStorage.existsByEmail(anyString())).thenReturn(true);
-
-        assertThrows(ConflictException.class, () -> userService.createUser(userDto));
-        verify(userStorage, never()).save(any(User.class));
+        verify(userRepository).save(any(User.class));
     }
 
     @Test
     void shouldGetUserById() {
-        when(userStorage.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
         UserDto foundUser = userService.getUserById(1L);
 
@@ -69,17 +68,16 @@ class UserServiceImplTest {
 
     @Test
     void shouldThrowNotFoundExceptionWhenUserNotFound() {
-        when(userStorage.findById(99L)).thenReturn(Optional.empty());
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> userService.getUserById(99L));
     }
 
     @Test
     void shouldUpdateUser() {
-        UserDto updates = new UserDto(0, "Jane Doe", "jane.doe@example.com");
-        when(userStorage.findById(1L)).thenReturn(Optional.of(user));
-        when(userStorage.existsByEmail("jane.doe@example.com")).thenReturn(false);
-        when(userStorage.update(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        UserDto updates = UserDto.builder().name("Jane Doe").email("jane.doe@example.com").build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         UserDto updatedUser = userService.updateUser(1L, updates);
 
@@ -89,17 +87,25 @@ class UserServiceImplTest {
 
     @Test
     void shouldDeleteUser() {
-        when(userStorage.findById(1L)).thenReturn(Optional.of(user));
-        doNothing().when(userStorage).deleteById(1L);
+        when(userRepository.existsById(1L)).thenReturn(true);
+        doNothing().when(userRepository).deleteById(1L);
 
         userService.deleteUser(1L);
 
-        verify(userStorage, times(1)).deleteById(1L);
+        verify(userRepository, times(1)).deleteById(1L);
+    }
+
+    @Test
+    void shouldThrowNotFoundExceptionWhenDeletingNonExistentUser() {
+        when(userRepository.existsById(99L)).thenReturn(false);
+
+        assertThrows(NotFoundException.class, () -> userService.deleteUser(99L));
+        verify(userRepository, never()).deleteById(anyLong());
     }
 
     @Test
     void shouldGetAllUsers() {
-        when(userStorage.findAll()).thenReturn(List.of(user));
+        when(userRepository.findAll()).thenReturn(List.of(user));
 
         List<UserDto> users = userService.getAllUsers();
 

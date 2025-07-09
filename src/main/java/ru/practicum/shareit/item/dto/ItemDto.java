@@ -1,24 +1,27 @@
 package ru.practicum.shareit.item.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class ItemDto {
-
     private Long id;
-    @NotBlank(message = "Name cannot be blank")
+
+    @NotBlank
     private String name;
 
-    @NotBlank(message = "Description cannot be blank")
+    @NotBlank
     private String description;
 
-    @NotNull(message = "Available status is required")
+    @NotNull
     private Boolean available;
 
     private Long requestId;

@@ -1,49 +1,54 @@
 package ru.practicum.shareit.exception;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import jakarta.validation.ConstraintViolationException;
-import lombok.extern.slf4j.Slf4j;
-
 @RestControllerAdvice
 @Slf4j
 public class ExceptionHandler {
 
-    @org.springframework.web.bind.annotation.ExceptionHandler
+    @org.springframework.web.bind.annotation.ExceptionHandler(NotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ErrorResponse handleNotFoundException(final NotFoundException e) {
-        log.error("NotFoundException: {}", e.getMessage());
+    public ErrorResponse handleNotFoundException(NotFoundException e) {
+        log.warn("Not found error: {}", e.getMessage());
         return new ErrorResponse(e.getMessage());
     }
 
-    @org.springframework.web.bind.annotation.ExceptionHandler
+    @org.springframework.web.bind.annotation.ExceptionHandler(ValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleValidationException(ValidationException e) {
+        log.warn("Validation error: {}", e.getMessage());
+        return new ErrorResponse(e.getMessage());
+    }
+
+    @org.springframework.web.bind.annotation.ExceptionHandler(ConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ErrorResponse handleConflictException(final ConflictException e) {
-        log.error("ConflictException: {}", e.getMessage());
+    public ErrorResponse handleConflictException(ConflictException e) {
+        log.warn("Conflict error: {}", e.getMessage());
         return new ErrorResponse(e.getMessage());
     }
 
-    @org.springframework.web.bind.annotation.ExceptionHandler
+    @org.springframework.web.bind.annotation.ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleMethodArgumentNotValidException(final MethodArgumentNotValidException e) {
-        log.error("MethodArgumentNotValidException: {}", e.getMessage());
-        return new ErrorResponse("Validation error: " + e.getMessage());
+    public ErrorResponse handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
+        log.warn("Validation error: {}", e.getMessage());
+        return new ErrorResponse("Validation failed");
     }
 
-    @org.springframework.web.bind.annotation.ExceptionHandler
+    @org.springframework.web.bind.annotation.ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleConstraintViolationException(final ConstraintViolationException e) {
-        log.error("ConstraintViolationException: {}", e.getMessage());
-        return new ErrorResponse("Constraint violation: " + e.getMessage());
+    public ErrorResponse handleIllegalArgumentException(IllegalArgumentException e) {
+        log.warn("Bad request: {}", e.getMessage());
+        return new ErrorResponse(e.getMessage());
     }
 
-    @org.springframework.web.bind.annotation.ExceptionHandler
+    @org.springframework.web.bind.annotation.ExceptionHandler(Throwable.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ErrorResponse handleThrowable(final Throwable e) {
-        log.error("Unexpected error: {}", e.getMessage(), e);
-        return new ErrorResponse("An unexpected error has occurred.");
+    public ErrorResponse handleThrowable(Throwable e) {
+        log.error("Unexpected error", e);
+        return new ErrorResponse("Internal server error");
     }
 }
