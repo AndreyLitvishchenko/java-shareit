@@ -2,6 +2,7 @@ package ru.practicum.shareit.item;
 
 import java.util.List;
 
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,31 +25,32 @@ import ru.practicum.shareit.item.servece.ItemService;
 @RestController
 @RequestMapping("/items")
 @RequiredArgsConstructor
+@Validated
 public class ItemController {
 
     private final ItemService itemService;
 
     @PostMapping
-    public ItemDto createItem(@RequestHeader("X-Sharer-User-Id") Long userId,
+    public ItemDto createItem(@RequestHeader("X-Sharer-User-Id") @Positive Long userId,
             @Valid @RequestBody ItemDto itemDto) {
         return itemService.createItem(userId, itemDto);
     }
 
     @PatchMapping("/{itemId}")
-    public ItemDto updateItem(@RequestHeader("X-Sharer-User-Id") Long userId,
-            @PathVariable Long itemId,
+    public ItemDto updateItem(@RequestHeader("X-Sharer-User-Id") @Positive Long userId,
+            @PathVariable @Positive Long itemId,
             @RequestBody ItemDto itemDto) {
         return itemService.updateItem(userId, itemId, itemDto);
     }
 
     @GetMapping("/{itemId}")
-    public ItemWithBookingDto getItemById(@PathVariable Long itemId,
-            @RequestHeader("X-Sharer-User-Id") Long userId) {
+    public ItemWithBookingDto getItemById(@PathVariable @Positive Long itemId,
+            @RequestHeader("X-Sharer-User-Id") @Positive Long userId) {
         return itemService.getItemById(itemId, userId);
     }
 
     @GetMapping
-    public List<ItemWithBookingDto> getItemsByOwner(@RequestHeader("X-Sharer-User-Id") Long userId,
+    public List<ItemWithBookingDto> getItemsByOwner(@RequestHeader("X-Sharer-User-Id") @Positive Long userId,
             @PositiveOrZero @RequestParam(defaultValue = "0") int from,
             @Positive @RequestParam(defaultValue = "10") int size) {
         return itemService.getItemsByOwner(userId, from, size);
@@ -62,8 +64,8 @@ public class ItemController {
     }
 
     @PostMapping("/{itemId}/comment")
-    public CommentDto addComment(@RequestHeader("X-Sharer-User-Id") Long userId,
-            @PathVariable Long itemId,
+    public CommentDto addComment(@RequestHeader("X-Sharer-User-Id") @Positive Long userId,
+            @PathVariable @Positive Long itemId,
             @Valid @RequestBody CommentDto commentDto) {
         return itemService.addComment(itemId, userId, commentDto);
     }
