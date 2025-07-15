@@ -58,4 +58,4 @@ public class BookingController {
                                                     @RequestParam(defaultValue = "10") int size) {
         return bookingService.getBookingsByOwner(userId, state, from, size);
     }
-} 
+}

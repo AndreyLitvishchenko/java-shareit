@@ -18,12 +18,9 @@ import lombok.RequiredArgsConstructor;
 @Controller
 @RequestMapping("/users")
 @Validated
+@RequiredArgsConstructor
 public class UserController {
     private final UserClient userClient;
-    
-    public UserController(UserClient userClient) {
-        this.userClient = userClient;
-    }
 
     @PostMapping
     public ResponseEntity<Object> createUser(@Valid @RequestBody UserDto userDto) {
@@ -50,4 +47,4 @@ public class UserController {
     public ResponseEntity<Object> deleteUser(@PathVariable @Positive Long userId) {
         return userClient.deleteUser(userId);
     }
-} 
+}

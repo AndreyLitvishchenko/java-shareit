@@ -19,4 +19,4 @@ public class UserDto {
     @Email(message = "Invalid email format")
     @NotBlank(message = "Email cannot be blank")
     private String email;
-} 
+}

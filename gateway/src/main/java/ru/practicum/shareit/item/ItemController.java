@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
@@ -21,12 +20,9 @@ import lombok.RequiredArgsConstructor;
 @Controller
 @RequestMapping("/items")
 @Validated
+@RequiredArgsConstructor
 public class ItemController {
     private final ItemClient itemClient;
-    
-    public ItemController(ItemClient itemClient) {
-        this.itemClient = itemClient;
-    }
 
     @PostMapping
     public ResponseEntity<Object> createItem(@RequestHeader("X-Sharer-User-Id") @Positive Long userId,
@@ -70,4 +66,4 @@ public class ItemController {
                                            @Valid @RequestBody CommentDto commentDto) {
         return itemClient.addComment(userId, itemId, commentDto);
     }
-} 
+}

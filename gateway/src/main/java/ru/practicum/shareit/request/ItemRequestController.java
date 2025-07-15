@@ -19,12 +19,9 @@ import lombok.RequiredArgsConstructor;
 @Controller
 @RequestMapping("/requests")
 @Validated
+@RequiredArgsConstructor
 public class ItemRequestController {
     private final ItemRequestClient itemRequestClient;
-    
-    public ItemRequestController(ItemRequestClient itemRequestClient) {
-        this.itemRequestClient = itemRequestClient;
-    }
 
     @PostMapping
     public ResponseEntity<Object> createRequest(@RequestHeader("X-Sharer-User-Id") @Positive Long userId,
@@ -49,4 +46,4 @@ public class ItemRequestController {
                                                @PathVariable @Positive Long requestId) {
         return itemRequestClient.getRequestById(userId, requestId);
     }
-} 
+}

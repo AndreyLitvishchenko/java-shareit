@@ -21,7 +21,7 @@ import java.util.List;
 @RequestMapping("/users")
 @RequiredArgsConstructor
 public class UserController {
-    
+
     private final UserService userService;
 
     @PostMapping
@@ -50,4 +50,4 @@ public class UserController {
     public void deleteUser(@PathVariable Long userId) {
         userService.deleteUser(userId);
     }
-} 
+}
