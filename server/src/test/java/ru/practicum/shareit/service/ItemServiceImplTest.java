@@ -110,7 +110,20 @@ class ItemServiceImplTest {
     void shouldThrowNotFoundExceptionWhenCreatingItemForNonExistentUser() {
         when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> itemService.createItem(99L, itemDto));
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> itemService.createItem(99L, itemDto));
+        assertEquals("User not found", exception.getMessage());
+    }
+
+    @Test
+    void shouldThrowNotFoundExceptionWhenCreatingItemWithNonExistentRequest() {
+        itemDto.setRequestId(99L);
+        when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        when(itemRequestRepository.findById(99L)).thenReturn(Optional.empty());
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> itemService.createItem(2L, itemDto));
+        assertEquals("Request not found", exception.getMessage());
     }
 
     @Test
@@ -126,12 +139,37 @@ class ItemServiceImplTest {
     }
 
     @Test
+    void shouldUpdateItemPartially() {
+        ItemDto updates = ItemDto.builder().name("Updated Drill").build(); // только имя
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        when(itemRepository.save(any(Item.class))).thenAnswer(i -> i.getArgument(0));
+
+        ItemDto updatedItem = itemService.updateItem(2L, 1L, updates);
+
+        assertEquals("Updated Drill", updatedItem.getName());
+        assertEquals("A powerful drill", updatedItem.getDescription()); // описание не изменилось
+        assertEquals(true, updatedItem.getAvailable()); // доступность не изменилась
+    }
+
+    @Test
+    void shouldThrowNotFoundExceptionWhenUpdatingNonExistentItem() {
+        ItemDto updates = ItemDto.builder().name("Updated Drill").build();
+        when(itemRepository.findById(99L)).thenReturn(Optional.empty());
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> itemService.updateItem(2L, 99L, updates));
+        assertEquals("Item not found", exception.getMessage());
+    }
+
+    @Test
     void shouldThrowNotFoundExceptionWhenUpdatingItemNotOwnedByUser() {
         long wrongUserId = 1L;
         ItemDto updates = ItemDto.builder().name("Updated Drill").build();
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
 
-        assertThrows(NotFoundException.class, () -> itemService.updateItem(wrongUserId, 1L, updates));
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> itemService.updateItem(wrongUserId, 1L, updates));
+        assertEquals("User is not owner of this item", exception.getMessage());
     }
 
     @Test
@@ -169,6 +207,15 @@ class ItemServiceImplTest {
     }
 
     @Test
+    void shouldThrowNotFoundExceptionWhenGettingNonExistentItem() {
+        when(itemRepository.findById(99L)).thenReturn(Optional.empty());
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> itemService.getItemById(99L, 1L));
+        assertEquals("Item not found", exception.getMessage());
+    }
+
+    @Test
     void shouldGetItemsByOwner() {
         when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
         when(itemRepository.findByOwnerIdOrderById(eq(2L), any(Pageable.class))).thenReturn(List.of(item));
@@ -188,6 +235,43 @@ class ItemServiceImplTest {
     }
 
     @Test
+    void shouldThrowNotFoundExceptionWhenGettingItemsForNonExistentOwner() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> itemService.getItemsByOwner(99L, 0, 10));
+        assertEquals("User not found", exception.getMessage());
+    }
+
+    @Test
+    void shouldGetAllItemsByUserId() {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        when(itemRepository.findByOwnerIdOrderById(eq(2L), any(Pageable.class))).thenReturn(List.of(item));
+        when(commentRepository.findByItemId(1L)).thenReturn(List.of(comment));
+        when(bookingRepository.findByItemIdAndEndBeforeOrderByEndDescAllStatuses(
+                eq(1L), any(LocalDateTime.class), any(Pageable.class)))
+                .thenReturn(List.of());
+        when(bookingRepository.findByItemIdAndStartAfterOrderByStartAscAllStatuses(
+                eq(1L), any(LocalDateTime.class), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        List<ItemWithBookingDto> items = itemService.getAllItemsByUserId(2L, 0, 10);
+
+        assertEquals(1, items.size());
+        assertEquals(item.getId(), items.get(0).getId());
+        assertEquals(1, items.get(0).getComments().size());
+    }
+
+    @Test
+    void shouldThrowNotFoundExceptionWhenGettingAllItemsForNonExistentUser() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> itemService.getAllItemsByUserId(99L, 0, 10));
+        assertEquals("User not found", exception.getMessage());
+    }
+
+    @Test
     void shouldSearchItems() {
         when(itemRepository.findByText(eq("drill"), any(Pageable.class))).thenReturn(List.of(item));
 
@@ -200,6 +284,20 @@ class ItemServiceImplTest {
     @Test
     void shouldReturnEmptyListForBlankSearch() {
         List<ItemDto> foundItems = itemService.searchItems("", 0, 10);
+
+        assertTrue(foundItems.isEmpty());
+    }
+
+    @Test
+    void shouldReturnEmptyListForNullSearch() {
+        List<ItemDto> foundItems = itemService.searchItems(null, 0, 10);
+
+        assertTrue(foundItems.isEmpty());
+    }
+
+    @Test
+    void shouldReturnEmptyListForWhitespaceSearch() {
+        List<ItemDto> foundItems = itemService.searchItems("   ", 0, 10);
 
         assertTrue(foundItems.isEmpty());
     }
@@ -222,6 +320,29 @@ class ItemServiceImplTest {
     }
 
     @Test
+    void shouldThrowNotFoundExceptionWhenAddingCommentByNonExistentUser() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        CommentDto commentDto = CommentDto.builder().text("Great item!").build();
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> itemService.addComment(1L, 99L, commentDto));
+        assertEquals("User not found", exception.getMessage());
+    }
+
+    @Test
+    void shouldThrowNotFoundExceptionWhenAddingCommentToNonExistentItem() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(itemRepository.findById(99L)).thenReturn(Optional.empty());
+
+        CommentDto commentDto = CommentDto.builder().text("Great item!").build();
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> itemService.addComment(99L, 1L, commentDto));
+        assertEquals("Item not found", exception.getMessage());
+    }
+
+    @Test
     void shouldNotAddCommentIfUserDidNotBookItem() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
@@ -231,7 +352,28 @@ class ItemServiceImplTest {
 
         CommentDto commentDto = CommentDto.builder().text("Great item!").build();
 
-        assertThrows(ValidationException.class,
+        ValidationException exception = assertThrows(ValidationException.class,
                 () -> itemService.addComment(1L, 1L, commentDto));
+        assertEquals("User must have finished booking to leave comment", exception.getMessage());
+    }
+
+    @Test
+    void shouldReturnEmptyItemsListForOwnerWithNoItems() {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        when(itemRepository.findByOwnerIdOrderById(eq(2L), any(Pageable.class))).thenReturn(List.of());
+
+        List<ItemWithBookingDto> items = itemService.getItemsByOwner(2L, 0, 10);
+
+        assertTrue(items.isEmpty());
+    }
+
+    @Test
+    void shouldReturnEmptyItemsListForUserWithNoItems() {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        when(itemRepository.findByOwnerIdOrderById(eq(2L), any(Pageable.class))).thenReturn(List.of());
+
+        List<ItemWithBookingDto> items = itemService.getAllItemsByUserId(2L, 0, 10);
+
+        assertTrue(items.isEmpty());
     }
 }

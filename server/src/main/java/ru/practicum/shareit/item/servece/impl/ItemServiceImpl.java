@@ -185,7 +185,7 @@ public class ItemServiceImpl implements ItemService {
         return ItemMapper.toItemWithBookingDto(item, null, null, comments);
     }
 
-@Override
+    @Override
     public List<ItemWithBookingDto> getAllItemsByUserId(Long userId, Integer from, Integer size) {
         userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));

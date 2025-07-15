@@ -21,6 +21,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.dao.DataIntegrityViolationException;
+import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.model.User;
@@ -111,5 +113,78 @@ class UserServiceImplTest {
 
         assertEquals(1, users.size());
         assertEquals(user.getName(), users.get(0).getName());
+    }
+
+    @Test
+    void shouldThrowConflictExceptionWhenCreatingUserWithDuplicateEmail() {
+        when(userRepository.save(any(User.class)))
+                .thenThrow(new DataIntegrityViolationException("Duplicate email"));
+
+        ConflictException exception = assertThrows(ConflictException.class,
+                () -> userService.createUser(userDto));
+
+        assertEquals("Email already exists: john.doe@example.com", exception.getMessage());
+        verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    void shouldThrowNotFoundExceptionWhenUpdatingNonExistentUser() {
+        UserDto updates = UserDto.builder().name("Jane Doe").build();
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> userService.updateUser(99L, updates));
+
+        assertEquals("User not found", exception.getMessage());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void shouldThrowConflictExceptionWhenUpdatingUserWithDuplicateEmail() {
+        UserDto updates = UserDto.builder().email("duplicate@example.com").build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class)))
+                .thenThrow(new DataIntegrityViolationException("Duplicate email"));
+
+        ConflictException exception = assertThrows(ConflictException.class,
+                () -> userService.updateUser(1L, updates));
+
+        assertEquals("Email already exists: duplicate@example.com", exception.getMessage());
+        verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    void shouldUpdateUserPartially() {
+        // Тест обновления только имени
+        UserDto updates = UserDto.builder().name("Jane Doe").build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserDto updatedUser = userService.updateUser(1L, updates);
+
+        assertEquals("Jane Doe", updatedUser.getName());
+        assertEquals("john.doe@example.com", updatedUser.getEmail()); // email остался прежним
+    }
+
+    @Test
+    void shouldUpdateUserEmailOnly() {
+        // Тест обновления только email
+        UserDto updates = UserDto.builder().email("new.email@example.com").build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserDto updatedUser = userService.updateUser(1L, updates);
+
+        assertEquals("John Doe", updatedUser.getName()); // имя осталось прежним
+        assertEquals("new.email@example.com", updatedUser.getEmail());
+    }
+
+    @Test
+    void shouldGetAllUsersEmptyList() {
+        when(userRepository.findAll()).thenReturn(List.of());
+
+        List<UserDto> users = userService.getAllUsers();
+
+        assertEquals(0, users.size());
     }
 }

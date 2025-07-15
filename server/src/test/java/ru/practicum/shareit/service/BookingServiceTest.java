@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -83,13 +84,35 @@ class BookingServiceTest {
     }
 
     @Test
+    void shouldThrowNotFoundExceptionWhenCreatingBookingForNonExistentUser() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> bookingService.createBooking(99L, bookingDto));
+        assertEquals("User not found", exception.getMessage());
+    }
+
+    @Test
+    void shouldThrowNotFoundExceptionWhenCreatingBookingForNonExistentItem() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(itemRepository.findById(99L)).thenReturn(Optional.empty());
+
+        bookingDto.setItemId(99L);
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> bookingService.createBooking(1L, bookingDto));
+        assertEquals("Item not found", exception.getMessage());
+    }
+
+    @Test
     void shouldNotCreateBookingWhenItemNotAvailable() {
         item.setAvailable(false);
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
 
-        assertThrows(ValidationException.class,
+        ValidationException exception = assertThrows(ValidationException.class,
                 () -> bookingService.createBooking(1L, bookingDto));
+        assertEquals("Item is not available for booking", exception.getMessage());
     }
 
     @Test
@@ -97,8 +120,9 @@ class BookingServiceTest {
         when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
 
-        assertThrows(NotFoundException.class,
+        NotFoundException exception = assertThrows(NotFoundException.class,
                 () -> bookingService.createBooking(2L, bookingDto));
+        assertEquals("Owner cannot book their own item", exception.getMessage());
     }
 
     @Test
@@ -112,8 +136,26 @@ class BookingServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
 
-        assertThrows(ValidationException.class,
+        ValidationException exception = assertThrows(ValidationException.class,
                 () -> bookingService.createBooking(1L, invalidDto));
+        assertEquals("End date must be after start date", exception.getMessage());
+    }
+
+    @Test
+    void shouldNotCreateBookingWithEqualStartAndEndDates() {
+        LocalDateTime sameTime = LocalDateTime.now().plusDays(1);
+        BookingDto invalidDto = BookingDto.builder()
+                .itemId(1L)
+                .start(sameTime)
+                .end(sameTime) // end equals start
+                .build();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+
+        ValidationException exception = assertThrows(ValidationException.class,
+                () -> bookingService.createBooking(1L, invalidDto));
+        assertEquals("End date must be after start date", exception.getMessage());
     }
 
     @Test
@@ -139,11 +181,39 @@ class BookingServiceTest {
     }
 
     @Test
+    void shouldThrowNotFoundExceptionWhenUpdatingNonExistentBooking() {
+        when(bookingRepository.findById(99L)).thenReturn(Optional.empty());
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> bookingService.updateBookingStatus(2L, 99L, true));
+        assertEquals("Booking not found", exception.getMessage());
+    }
+
+    @Test
     void shouldNotUpdateBookingStatusWhenNotOwner() {
         when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
 
-        assertThrows(NotFoundException.class,
+        NotFoundException exception = assertThrows(NotFoundException.class,
                 () -> bookingService.updateBookingStatus(1L, 1L, true)); // user is not owner
+        assertEquals("Only item owner can update booking status", exception.getMessage());
+    }
+
+    @Test
+    void shouldNotUpdateBookingStatusWhenNotWaiting() {
+        Booking approvedBooking = Booking.builder()
+                .id(1L)
+                .start(LocalDateTime.now().plusDays(1))
+                .end(LocalDateTime.now().plusDays(2))
+                .item(item)
+                .booker(user)
+                .status(BookingStatus.APPROVED) // уже подтверждено
+                .build();
+
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(approvedBooking));
+
+        ValidationException exception = assertThrows(ValidationException.class,
+                () -> bookingService.updateBookingStatus(2L, 1L, true));
+        assertEquals("Booking status can only be changed from WAITING", exception.getMessage());
     }
 
     @Test
@@ -167,11 +237,21 @@ class BookingServiceTest {
     }
 
     @Test
+    void shouldThrowNotFoundExceptionWhenGettingNonExistentBooking() {
+        when(bookingRepository.findById(99L)).thenReturn(Optional.empty());
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> bookingService.getBookingById(1L, 99L));
+        assertEquals("Booking not found", exception.getMessage());
+    }
+
+    @Test
     void shouldNotGetBookingByIdForOtherUser() {
         when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
 
-        assertThrows(NotFoundException.class,
+        NotFoundException exception = assertThrows(NotFoundException.class,
                 () -> bookingService.getBookingById(99L, 1L)); // other user
+        assertEquals("User can only view their own bookings or bookings for their items", exception.getMessage());
     }
 
     @Test
@@ -181,6 +261,89 @@ class BookingServiceTest {
                 .thenReturn(List.of(booking));
 
         List<BookingResponseDto> result = bookingService.getBookingsByUser(1L, "ALL", 0, 10);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void shouldThrowNotFoundExceptionWhenGettingBookingsForNonExistentUser() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> bookingService.getBookingsByUser(99L, "ALL", 0, 10));
+        assertEquals("User not found", exception.getMessage());
+    }
+
+    @Test
+    void shouldGetUserBookingsWithCurrentState() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(bookingRepository.findByBookerIdAndCurrentOrderByStartDesc(eq(1L), any(LocalDateTime.class), any(Pageable.class)))
+                .thenReturn(List.of(booking));
+
+        List<BookingResponseDto> result = bookingService.getBookingsByUser(1L, "CURRENT", 0, 10);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void shouldGetUserBookingsWithPastState() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(bookingRepository.findByBookerIdAndPastOrderByStartDesc(eq(1L), any(LocalDateTime.class), any(Pageable.class)))
+                .thenReturn(List.of(booking));
+
+        List<BookingResponseDto> result = bookingService.getBookingsByUser(1L, "PAST", 0, 10);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void shouldGetUserBookingsWithFutureState() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(bookingRepository.findByBookerIdAndFutureOrderByStartDesc(eq(1L), any(LocalDateTime.class), any(Pageable.class)))
+                .thenReturn(List.of(booking));
+
+        List<BookingResponseDto> result = bookingService.getBookingsByUser(1L, "FUTURE", 0, 10);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void shouldGetUserBookingsWithWaitingState() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(bookingRepository.findByBookerIdAndStatusOrderByStartDesc(eq(1L), eq(BookingStatus.WAITING),
+                any(Pageable.class)))
+                .thenReturn(List.of(booking));
+
+        List<BookingResponseDto> result = bookingService.getBookingsByUser(1L, "WAITING", 0, 10);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void shouldGetUserBookingsWithRejectedState() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(bookingRepository.findByBookerIdAndStatusOrderByStartDesc(eq(1L), eq(BookingStatus.REJECTED),
+                any(Pageable.class)))
+                .thenReturn(List.of(booking));
+
+        List<BookingResponseDto> result = bookingService.getBookingsByUser(1L, "REJECTED", 0, 10);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void shouldGetUserBookingsWithUnknownState() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(bookingRepository.findByBookerIdOrderByStartDesc(eq(1L), any(Pageable.class)))
+                .thenReturn(List.of(booking));
+
+        List<BookingResponseDto> result = bookingService.getBookingsByUser(1L, "UNKNOWN", 0, 10);
 
         assertFalse(result.isEmpty());
         assertEquals(1, result.size());
@@ -199,15 +362,107 @@ class BookingServiceTest {
     }
 
     @Test
-    void shouldGetUserBookingsWithWaitingState() {
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(bookingRepository.findByBookerIdAndStatusOrderByStartDesc(eq(1L), eq(BookingStatus.WAITING),
-                any(Pageable.class)))
+    void shouldThrowNotFoundExceptionWhenGettingOwnerBookingsForNonExistentUser() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> bookingService.getBookingsByOwner(99L, "ALL", 0, 10));
+        assertEquals("User not found", exception.getMessage());
+    }
+
+    @Test
+    void shouldGetOwnerBookingsWithCurrentState() {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        when(bookingRepository.findByItem_OwnerIdAndCurrentOrderByStartDesc(eq(2L), any(LocalDateTime.class), any(Pageable.class)))
                 .thenReturn(List.of(booking));
 
-        List<BookingResponseDto> result = bookingService.getBookingsByUser(1L, "WAITING", 0, 10);
+        List<BookingResponseDto> result = bookingService.getBookingsByOwner(2L, "CURRENT", 0, 10);
 
         assertFalse(result.isEmpty());
         assertEquals(1, result.size());
+    }
+
+    @Test
+    void shouldGetOwnerBookingsWithPastState() {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        when(bookingRepository.findByItem_OwnerIdAndPastOrderByStartDesc(eq(2L), any(LocalDateTime.class), any(Pageable.class)))
+                .thenReturn(List.of(booking));
+
+        List<BookingResponseDto> result = bookingService.getBookingsByOwner(2L, "PAST", 0, 10);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void shouldGetOwnerBookingsWithFutureState() {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        when(bookingRepository.findByItem_OwnerIdAndFutureOrderByStartDesc(eq(2L), any(LocalDateTime.class), any(Pageable.class)))
+                .thenReturn(List.of(booking));
+
+        List<BookingResponseDto> result = bookingService.getBookingsByOwner(2L, "FUTURE", 0, 10);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void shouldGetOwnerBookingsWithWaitingState() {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        when(bookingRepository.findByItem_OwnerIdAndStatusOrderByStartDesc(eq(2L), eq(BookingStatus.WAITING),
+                any(Pageable.class)))
+                .thenReturn(List.of(booking));
+
+        List<BookingResponseDto> result = bookingService.getBookingsByOwner(2L, "WAITING", 0, 10);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void shouldGetOwnerBookingsWithRejectedState() {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        when(bookingRepository.findByItem_OwnerIdAndStatusOrderByStartDesc(eq(2L), eq(BookingStatus.REJECTED),
+                any(Pageable.class)))
+                .thenReturn(List.of(booking));
+
+        List<BookingResponseDto> result = bookingService.getBookingsByOwner(2L, "REJECTED", 0, 10);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void shouldGetOwnerBookingsWithUnknownState() {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        when(bookingRepository.findByItem_OwnerIdOrderByStartDesc(eq(2L), any(Pageable.class)))
+                .thenReturn(List.of(booking));
+
+        List<BookingResponseDto> result = bookingService.getBookingsByOwner(2L, "UNKNOWN", 0, 10);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void shouldReturnEmptyListWhenNoUserBookings() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(bookingRepository.findByBookerIdOrderByStartDesc(eq(1L), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        List<BookingResponseDto> result = bookingService.getBookingsByUser(1L, "ALL", 0, 10);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void shouldReturnEmptyListWhenNoOwnerBookings() {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(owner));
+        when(bookingRepository.findByItem_OwnerIdOrderByStartDesc(eq(2L), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        List<BookingResponseDto> result = bookingService.getBookingsByOwner(2L, "ALL", 0, 10);
+
+        assertTrue(result.isEmpty());
     }
 }
