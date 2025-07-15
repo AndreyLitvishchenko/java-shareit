@@ -113,6 +113,9 @@
 					<version>0.8.12</version>
 					<configuration>
 						<output>file</output>
+						<excludes>
+							<exclude>**/BookingState.class</exclude>
+						</excludes>
 					</configuration>
 					<executions>
 						<execution>
