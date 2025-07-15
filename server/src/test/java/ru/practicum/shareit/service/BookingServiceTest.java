@@ -28,6 +28,7 @@ import ru.practicum.shareit.booking.dto.BookingDto;
 import ru.practicum.shareit.booking.dto.BookingResponseDto;
 import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.booking.service.impl.BookingServiceImpl;
+import ru.practicum.shareit.exception.ForbiddenException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.model.Item;
@@ -193,7 +194,7 @@ class BookingServiceTest {
     void shouldNotUpdateBookingStatusWhenNotOwner() {
         when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
 
-        NotFoundException exception = assertThrows(NotFoundException.class,
+        ForbiddenException exception = assertThrows(ForbiddenException.class,
                 () -> bookingService.updateBookingStatus(1L, 1L, true)); // user is not owner
         assertEquals("Only item owner can update booking status", exception.getMessage());
     }

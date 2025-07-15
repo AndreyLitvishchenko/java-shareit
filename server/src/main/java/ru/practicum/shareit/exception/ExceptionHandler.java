@@ -31,6 +31,13 @@ public class ExceptionHandler {
         return new ErrorResponse(e.getMessage());
     }
 
+    @org.springframework.web.bind.annotation.ExceptionHandler(ForbiddenException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleForbiddenException(ForbiddenException e) {
+        log.warn("Forbidden error: {}", e.getMessage());
+        return new ErrorResponse(e.getMessage());
+    }
+
     @org.springframework.web.bind.annotation.ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
