@@ -20,4 +20,4 @@ class ItemTest {
         assertEquals(description, item.getDescription());
         assertEquals(available, item.getAvailable());
     }
-} 
+}
