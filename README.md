@@ -1,6 +1,25 @@
 # ShareIt - Сервис Шаринга Вещей
 
-ShareIt - это веб-приложение для обмена вещами между пользователями. Пользователи могут добавлять свои вещи, бронировать вещи других пользователей и оставлять отзывы.
+ShareIt - это веб-приложение для обмена вещами между пользователями, построенное на микросервисной архитектуре. Пользователи могут добавлять свои вещи, бронировать вещи других пользователей и оставлять отзывы.
+
+## Архитектура
+
+Проект состоит из двух микросервисов:
+
+### Gateway (Шлюз)
+- **Порт**: 8080
+- **Назначение**: Валидация входящих запросов, маршрутизация
+- **Технологии**: Spring Boot, Spring Web, Spring Validation
+
+### Server (Сервер)
+- **Порт**: 9090
+- **Назначение**: Бизнес-логика, работа с базой данных
+- **Технологии**: Spring Boot, Spring Data JPA, PostgreSQL
+
+### Database (База данных)
+- **Порт**: 6543
+- **Технология**: PostgreSQL
+- **Контейнер**: Docker
 
 ## Функциональность
 
@@ -12,6 +31,7 @@ ShareIt - это веб-приложение для обмена вещами м
 - Создание, просмотр, обновление вещей
 - Поиск вещей по названию и описанию
 - Просмотр доступных для аренды вещей
+- Отображение информации о бронированиях для владельцев
 
 ### Система бронирования
 - Создание запроса на бронирование
@@ -25,50 +45,99 @@ ShareIt - это веб-приложение для обмена вещами м
 - Только пользователи, бравшие вещь в аренду, могут оставлять отзывы
 - Просмотр комментариев при просмотре вещей
 
+### Система запросов на вещи
+- Создание запросов на нужные вещи
+- Просмотр запросов и ответов на них
+
 ## Технический стек
 
-- **Java 11**
-- **Spring Boot 3.1.0**
+- **Java 21**
+- **Spring Boot 3.3.2**
 - **Spring Data JPA**
+- **Spring Web**
+- **Spring Validation**
 - **PostgreSQL** (продакшн)
 - **H2** (тесты)
 - **Maven**
 - **Lombok**
 - **JUnit 5 + Mockito** (тестирование)
+- **Docker & Docker Compose**
 
 ## Структура проекта
 
 ```
-src/main/java/ru/practicum/shareit/
-├── booking/                    # Бронирования
-│   ├── dto/                   # DTO классы
-│   ├── mapper/                # Мапперы
-│   ├── repository/            # Репозитории
-│   ├── service/               # Сервисы
-│   ├── Booking.java           # Сущность
-│   ├── BookingController.java # Контроллер
-│   ├── BookingState.java      # Состояния для фильтрации
-│   └── BookingStatus.java     # Статусы бронирования
-├── exception/                 # Обработка исключений
-├── item/                      # Вещи
-│   ├── dto/                   # DTO классы
-│   ├── mapper/                # Мапперы
-│   ├── model/                 # Сущности (Item, Comment)
-│   ├── repository/            # Репозитории
-│   ├── service/               # Сервисы
-│   └── ItemController.java    # Контроллер
-├── request/                   # Запросы на вещи (заготовка)
-├── user/                      # Пользователи
-│   ├── controller/            # Контроллер
-│   ├── dto/                   # DTO классы
-│   ├── mapper/                # Мапперы
-│   ├── model/                 # Сущность User
-│   ├── repository/            # Репозиторий
-│   └── service/               # Сервисы
-└── ShareItApp.java            # Главный класс приложения
+java-shareit/
+├── docker-compose.yml         # Docker окружение
+├── gateway/                   # Микросервис Gateway
+│   ├── src/main/java/ru/practicum/shareit/
+│   │   ├── booking/
+│   │   │   ├── BookingClient.java      # HTTP клиент для server
+│   │   │   ├── BookingController.java  # REST контроллер
+│   │   │   ├── BookingDto.java         # DTO для валидации
+│   │   │   └── dto/
+│   │   │       ├── BookingState.java   # Enum состояний
+│   │   │       └── BookItemRequestDto.java
+│   │   ├── client/
+│   │   │   └── BaseClient.java         # Базовый HTTP клиент
+│   │   ├── exception/
+│   │   │   └── GlobalExceptionHandler.java # Обработка исключений
+│   │   ├── item/
+│   │   │   ├── ItemClient.java         # HTTP клиент для server
+│   │   │   ├── ItemController.java     # REST контроллер
+│   │   │   ├── ItemDto.java            # DTO для валидации
+│   │   │   └── CommentDto.java
+│   │   ├── request/
+│   │   │   ├── ItemRequestClient.java  # HTTP клиент для server
+│   │   │   ├── ItemRequestController.java
+│   │   │   └── ItemRequestDto.java
+│   │   ├── user/
+│   │   │   ├── UserClient.java         # HTTP клиент для server
+│   │   │   ├── UserController.java     # REST контроллер
+│   │   │   └── UserDto.java            # DTO для валидации
+│   │   └── ShareItGateway.java         # Main класс Gateway
+│   └── pom.xml
+├── server/                    # Микросервис Server
+│   ├── src/main/java/ru/practicum/shareit/
+│   │   ├── booking/
+│   │   │   ├── Booking.java            # JPA сущность
+│   │   │   ├── BookingController.java  # REST контроллер
+│   │   │   ├── BookingState.java       # Enum состояний
+│   │   │   ├── BookingStatus.java      # Enum статусов
+│   │   │   ├── dto/                    # DTO классы
+│   │   │   ├── mapper/                 # Мапперы
+│   │   │   ├── repository/             # JPA репозитории
+│   │   │   └── service/                # Бизнес-логика
+│   │   ├── exception/                  # Обработка исключений
+│   │   ├── item/
+│   │   │   ├── dto/                    # DTO классы
+│   │   │   ├── mapper/                 # Мапперы
+│   │   │   ├── model/                  # JPA сущности (Item, Comment)
+│   │   │   ├── repository/             # JPA репозитории
+│   │   │   ├── service/                # Бизнес-логика
+│   │   │   └── ItemController.java     # REST контроллер
+│   │   ├── request/
+│   │   │   ├── dto/                    # DTO классы
+│   │   │   ├── ItemRequest.java        # JPA сущность
+│   │   │   ├── ItemRequestController.java
+│   │   │   ├── ItemRequestMapper.java  # Маппер
+│   │   │   ├── repository/             # JPA репозитории
+│   │   │   └── service/                # Бизнес-логика
+│   │   ├── user/
+│   │   │   ├── controller/             # REST контроллер
+│   │   │   ├── dto/                    # DTO классы
+│   │   │   ├── mapper/                 # Мапперы
+│   │   │   ├── model/                  # JPA сущность User
+│   │   │   ├── repository/             # JPA репозиторий
+│   │   │   └── service/                # Бизнес-логика
+│   │   └── ShareItServer.java          # Main класс Server
+│   └── pom.xml
+├── postman/                   # Postman коллекция для тестирования
+└── pom.xml                    # Родительский POM
 ```
 
 ## API Endpoints
+
+Все запросы отправляются на Gateway (порт 8080), который валидирует их и перенаправляет на Server.
 
 ### Пользователи
 - `GET /users` - получить всех пользователей
@@ -78,7 +147,7 @@ src/main/java/ru/practicum/shareit/
 - `DELETE /users/{userId}` - удалить пользователя
 
 ### Вещи
-- `GET /items` - получить вещи пользователя
+- `GET /items` - получить вещи пользователя (с информацией о бронированиях для владельца)
 - `GET /items/{itemId}` - получить вещь по ID
 - `POST /items` - создать вещь
 - `PATCH /items/{itemId}` - обновить вещь
@@ -92,68 +161,134 @@ src/main/java/ru/practicum/shareit/
 - `GET /bookings?state={state}` - получить бронирования пользователя
 - `GET /bookings/owner?state={state}` - получить бронирования для вещей владельца
 
-## Настройка базы данных
+### Запросы на вещи
+- `POST /requests` - создать запрос на вещь
+- `GET /requests` - получить свои запросы
+- `GET /requests/all` - получить все запросы других пользователей
+- `GET /requests/{requestId}` - получить запрос по ID
 
-### Для разработки (PostgreSQL)
-1. Установите PostgreSQL
-2. Создайте базу данных `shareit`
-3. Создайте пользователя `shareit` с паролем `shareit`
-4. Настройте подключение в `application.properties`:
+## Запуск приложения
 
+### Через Docker Compose (рекомендуется)
+```bash
+# Клонируйте репозиторий
+git clone <repository-url>
+cd java-shareit
+
+# Запуск всех сервисов
+docker-compose up -d
+
+# Остановка всех сервисов
+docker-compose down
+
+# Просмотр логов
+docker-compose logs -f
+```
+
+После запуска будут доступны:
+- Gateway: http://localhost:8080
+- Server: http://localhost:9090
+- PostgreSQL: localhost:6543
+
+### Локальный запуск для разработки
+
+#### Предварительные требования
+- Java 21
+- Maven 3.6+
+- PostgreSQL 13+
+
+#### Запуск базы данных
+```bash
+# Через Docker
+docker run -d \
+  --name shareit-db \
+  -p 6543:5432 \
+  -e POSTGRES_DB=shareit \
+  -e POSTGRES_USER=shareit \
+  -e POSTGRES_PASSWORD=shareit \
+  postgres:13
+```
+
+#### Запуск Server
+```bash
+cd server
+mvn clean package -DskipTests
+java -jar target/shareit-server-0.0.1-SNAPSHOT.jar --server.port=9090
+```
+
+#### Запуск Gateway
+```bash
+cd gateway
+mvn clean package -DskipTests
+java -jar target/shareit-gateway-0.0.1-SNAPSHOT.jar --server.port=8080
+```
+
+## Тестирование
+
+### Автоматические тесты
+```bash
+# Запуск всех тестов
+mvn test
+
+# Запуск тестов только для gateway
+cd gateway && mvn test
+
+# Запуск тестов только для server
+cd server && mvn test
+```
+
+### Postman коллекция
+В папке `postman/` находится коллекция для тестирования API. Импортируйте файл `sprint.json` в Postman.
+
+## Настройка окружения
+
+### Конфигурация Gateway
+`gateway/src/main/resources/application.properties`:
 ```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/shareit
+server.port=8080
+shareit-server.url=http://localhost:9090
+logging.level.ru.practicum=DEBUG
+```
+
+### Конфигурация Server
+`server/src/main/resources/application.properties`:
+```properties
+server.port=9090
+spring.datasource.url=jdbc:postgresql://localhost:6543/shareit
 spring.datasource.username=shareit
 spring.datasource.password=shareit
+spring.jpa.hibernate.ddl-auto=none
+spring.sql.init.mode=always
+spring.sql.init.schema-locations=classpath:schema.sql
 ```
 
 ### Схема базы данных
-Схема создается автоматически при запуске из файла `schema.sql`. Включает таблицы:
+Схема создается автоматически при запуске из файла `server/src/main/resources/schema.sql`. Включает таблицы:
 - `users` - пользователи
 - `items` - вещи
 - `bookings` - бронирования
 - `comments` - комментарии
 - `requests` - запросы на вещи
 
-## Запуск приложения
+## Разделение ответственности
 
-### Из IDE
-1. Клонируйте репозиторий
-2. Откройте проект в IDE
-3. Настройте подключение к PostgreSQL
-4. Запустите `ShareItApp.main()`
+### Gateway отвечает за:
+- Валидацию входящих запросов
+- Авторизацию пользователей (заголовок X-Sharer-User-Id)
+- Маршрутизацию запросов на Server
+- Обработку ошибок валидации
 
-### Из командной строки
-```bash
-# Компиляция
-mvn clean compile
-
-# Запуск тестов
-mvn test
-
-# Создание JAR файла
-mvn clean package
-
-# Запуск приложения
-java -jar target/shareit-0.0.1-SNAPSHOT.jar
-```
-
-## Тестирование
-
-Проект включает:
-- **Unit тесты** для сервисов с Mockito
-- **Integration тесты** контроллеров с MockMvc
-- **End-to-end тесты** полного функционала
-
-Запуск тестов:
-```bash
-mvn test
-```
+### Server отвечает за:
+- Бизнес-логику приложения
+- Работу с базой данных
+- Обработку бизнес-исключений
+- Управление транзакциями
 
 ## Примеры использования API
 
 ### Создание пользователя
 ```bash
-POST /users
+POST http://localhost:8080/users
 Content-Type: application/json
 
 {
@@ -164,7 +299,7 @@ Content-Type: application/json
 
 ### Создание вещи
 ```bash
-POST /items
+POST http://localhost:8080/items
 X-Sharer-User-Id: 1
 Content-Type: application/json
 
@@ -177,7 +312,7 @@ Content-Type: application/json
 
 ### Создание бронирования
 ```bash
-POST /bookings
+POST http://localhost:8080/bookings
 X-Sharer-User-Id: 2
 Content-Type: application/json
 
@@ -190,13 +325,13 @@ Content-Type: application/json
 
 ### Подтверждение бронирования
 ```bash
-PATCH /bookings/1?approved=true
+PATCH http://localhost:8080/bookings/1?approved=true
 X-Sharer-User-Id: 1
 ```
 
 ### Добавление комментария
 ```bash
-POST /items/1/comment
+POST http://localhost:8080/items/1/comment
 X-Sharer-User-Id: 2
 Content-Type: application/json
 
@@ -205,12 +340,22 @@ Content-Type: application/json
 }
 ```
 
+### Создание запроса на вещь
+```bash
+POST http://localhost:8080/requests
+X-Sharer-User-Id: 1
+Content-Type: application/json
+
+{
+    "description": "Нужна дрель для ремонта"
+}
+```
+
 ## Статусы бронирования
 
 - **WAITING** - новое бронирование, ожидает подтверждения
 - **APPROVED** - бронирование подтверждено владельцем
 - **REJECTED** - бронирование отклонено владельцем
-- **CANCELED** - бронирование отменено создателем
 
 ## Состояния для фильтрации бронирований
 
@@ -220,3 +365,37 @@ Content-Type: application/json
 - **FUTURE** - будущие бронирования
 - **WAITING** - ожидающие подтверждения
 - **REJECTED** - отклоненные
+
+## Мониторинг и отладка
+
+### Логи
+```bash
+# Просмотр логов всех сервисов
+docker-compose logs -f
+
+# Просмотр логов конкретного сервиса
+docker-compose logs -f gateway
+docker-compose logs -f server
+```
+
+### Проверка здоровья сервисов
+```bash
+# Gateway
+curl http://localhost:8080/actuator/health
+
+# Server
+curl http://localhost:9090/actuator/health
+```
+
+### Подключение к базе данных
+```bash
+docker exec -it shareit-db psql -U shareit -d shareit
+```
+
+## Архитектурные решения
+
+1. **Микросервисная архитектура** - разделение на gateway и server позволяет независимо масштабировать валидацию и бизнес-логику
+2. **Разделение ответственности** - gateway выполняет валидацию, server - бизнес-логику
+3. **HTTP-клиенты** - gateway взаимодействует с server через HTTP REST API
+4. **Контейнеризация** - все сервисы запускаются в Docker контейнерах
+5. **Единая точка входа** - все клиентские запросы проходят через gateway
